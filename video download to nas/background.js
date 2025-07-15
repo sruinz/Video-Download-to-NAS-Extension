@@ -26,7 +26,7 @@ function createContextMenu() {
     });
 
     const resolutions = [
-      'best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p', 'audio-m4a', 'audio-mp3'
+      'best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p', 'audio-m4a', 'audio-mp3', 'srt', 'vtt'
     ];
 
     resolutions.forEach(function(resolution) {
@@ -47,7 +47,7 @@ createContextMenu();
 // 컨텍스트 메뉴 클릭 시 처리
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
   const resolutions = [
-    'best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p', 'audio-m4a', 'audio-mp3'
+    'best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p', 'audio-m4a', 'audio-mp3', 'srt', 'vtt'
   ];
 
   if (resolutions.includes(info.menuItemId)) {
