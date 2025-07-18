@@ -7,7 +7,7 @@ https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgok
 크롬스토어 다운로드 1.1.15
 https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko
 
-1.1.15 업데이트 내용
+1.1.15 업데이트 내용:
 자막 언어 선택 기능 추가
 
 1.1.14 업데이트 내용:
