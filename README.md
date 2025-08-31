@@ -1,7 +1,7 @@
 # Video Download to NAS
 youtube-dl-nas 의 크롬 엣지 확장 프로그램입니다. 
 
-[![Edge 스토어](https://img.shields.io/static/v1?label=%EC%97%A3%EC%A7%80%20%EC%8A%A4%ED%86%A0%EC%96%B4&message=v1.1.15&color=0078D4&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)
+[![Edge 스토어](https://img.shields.io/badge/엣지%20스토어-v1.1.15-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=%ED%81%AC%EB%A1%AC%20%EC%8A%A4%ED%86%A0%EC%96%B4&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
 
