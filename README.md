@@ -1,9 +1,9 @@
 # Video Download to NAS
 youtube-dl-nas 의 크롬 엣지 확장 프로그램입니다. 
 
-[![Edge 스토어](https://img.shields.io/badge/엣지%20스토어-v1.1.15-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)
+[![Edge Add-ons](https://img.shields.io/badge/Edge%20Add--ons-v1.1.15-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=%ED%81%AC%EB%A1%AC%20%EC%8A%A4%ED%86%A0%EC%96%B4&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=Chrome%20Web%20Store&logo=google-chrome&logoColor=white&style=flat-square)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
 
 1.1.15 업데이트 내용:
 자막 언어 선택 기능 추가
