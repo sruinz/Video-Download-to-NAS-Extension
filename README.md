@@ -1,7 +1,7 @@
 # Video Download to NAS
 [![엣지 스토어](https://img.shields.io/badge/엣지%20스토어-v1.1.15-0078D4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+TWljcm9zb2Z0IEVkZ2U8L3RpdGxlPjxwYXRoIGZpbGw9IndoaXRlIiBkPSJNMTIuMzUyIDI0QzUuNTMgMjQgMCAxOC40NyAwIDExLjY0OCAwIDUuNTMgNS41MyAwIDEyLjM1NiAwYzUuNzI3IDAgOS41MDggMy4yMiAxMC40NSA3LjQyNGwtMy4zMzIgMS4yNThjLS44LTIuNjEtMi43My00LjUyNC02LjkyNC00LjUyNC00LjIyIDAtNy4zOSAzLjAxNS03LjM5IDcuNDkgMCA0LjQ1IDMuMTcgNy40OSA3LjM5IDcuNDkgNC4xOTQgMCA2LjEyNC0xLjkxNCA2LjkyNC00LjUyNGwzLjMzMiAxLjI1OEMyMS44NiAyMC43OCAxOC4wOCAyNCAxMi4zNTIgMjR6bS40MjItMTIuMjYySDUuMTk1djEuODE1aDcuNTh2LTEuODE1eiIvPjwvc3ZnPg==)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)[![크롬 스토어](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=%ED%81%AC%EB%A1%AC%20%EC%8A%A4%ED%86%A0%EC%96%B4&logo=google-chrome&logoColor=white&style=flat-square)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
 
-youtube-dl-nas 의 크롬 엣지 확장 프로그램입니다.
+Video Download to nas 의 크롬 엣지 확장 프로그램입니다.
 
 1.1.15 업데이트 내용:
 자막 언어 선택 기능 추가
@@ -36,13 +36,13 @@ youtube-dl-nas 의 크롬 엣지 확장 프로그램입니다.
 
 
 
-시놀로지 나스 도커에서 실행 가능한 youtube-dl-nas 의 확장 프로그램 입니다.
-(https://github.com/hyeonsangjeon/youtube-dl-nas)
+시놀로지 나스 도커에서 실행 가능한 Video Download to nas 의 확장 프로그램 입니다.
+(https://svrforum.com/nas/2866255)
 
 영상 링크 우 클릭 또는 영상 텍스트 드래그 후 우 클릭시 
 컨텍스트 메뉴가 표시됩니다.
 
-해상도를 선택하면 youtube-dl-nas 설치 시 지정한 폴더로 mp4 파일이 저장 됩니다.
+해상도를 선택하면 Video Download to nas 설치 시 지정한 폴더로 mp4 파일이 저장 됩니다.
 
 1080p 보다 큰 해상도의 영상은 av1 코덱으로 저장 되기 때문에 나스에서 재생 불가능 할 수 있습니다.
 
@@ -54,13 +54,13 @@ youtube-dl-nas 의 크롬 엣지 확장 프로그램입니다.
 오버레이에 목록이 표시되고 클릭을 했을 때 저장이 되는 기능을 추가 했습니다
 
 
-이 확장 프로그램을 사용하기 위해서는 https://github.com/hyeonsangjeon/youtube-dl-nas 서비스를 나스에 설치 해야 합니다
+이 확장 프로그램을 사용하기 위해서는 https://svrforum.com/nas/2866255 서비스를 나스에 설치 해야 합니다
 
 가이드 : https://svrforum.com/nas/1764971
 
-설정에는 youtube-dl-nas 에서 설정한 아이디, 패스워드와 
+설정에는 Video Download to nas 에서 설정한 아이디, 패스워드와 
 
-youtube-dl-nas의 로그인 후 웹페이지 주소를 rest api 부분에 입력해 준 후 저장 버튼을 눌러 저장합니다.
+Video Download to nas의 로웹페이지 주소를 rest api 부분에 입력해 준 후 저장 버튼을 눌러 저장합니다.
 
 영상 링크 화면에서 우클릭 후 컨텍스트 메뉴에서 해상도를 선택 또는 오버레이에서 영상을 선택
 
