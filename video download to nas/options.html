@@ -1,30 +1,86 @@
 <!DOCTYPE html>
 <html lang="ko">
   <head>
-    <meta charset="UTF-8"> <!-- 문자 인코딩 설정 -->
-    <title>Options</title>
+    <meta charset="UTF-8">
+    <title>Video Download to NAS - 설정</title>
     <link rel="stylesheet" href="options.css">
   </head>
   <body>
-    <h1>Options</h1>
-    <form id="options">
+    <div class="container">
+      <h1>Video Download to NAS</h1>
+      <p class="subtitle">인증 설정</p>
+      
+      <form id="options">
+      <!-- 인증 방법 선택 -->
       <div class="form-group">
-        <label for="restUrl">REST API URL</label>
-        <input type="text" id="restUrl" name="restUrl" class="input-field" placeholder="로그인 후 웹페이지 주소">
+        <label for="authMethod">인증 방법</label>
+        <select id="authMethod" name="authMethod" class="input-field">
+          <option value="config_url">⭐ Config URL (가장 간편)</option>
+          <option value="token">🔑 Username + API Token</option>
+          <option value="password">📝 Username + Password (레거시)</option>
+        </select>
+        <p class="hint">NAS 웹 UI > 계정 설정 > API 토큰에서 생성</p>
       </div>
-      <div class="form-group">
-        <label for="id">ID</label>
-        <input type="text" id="id" name="id" class="input-field" placeholder="ID">
-      </div>
-      <div class="form-group">
-        <label for="pw">Password</label>
-        <div class="password-container">
-          <input type="password" id="pw" name="pw" class="input-field" placeholder="Password">
-          <span class="toggle-password" id="togglePassword">👁️</span> <!-- 눈 아이콘 -->
+
+      <!-- Config URL 방식 -->
+      <div id="configUrlFields" class="auth-fields">
+        <div class="form-group">
+          <label for="configUrl">Config URL</label>
+          <input type="text" id="configUrl" name="configUrl" class="input-field" placeholder="http://your-nas:3000#vdtn_abc123...">
+          <p class="hint">NAS에서 생성한 Config URL 전체를 붙여넣으세요</p>
         </div>
       </div>
-      <button type="submit" class="submit-button">저장</button>
-    </form>
+
+      <!-- Token 방식 -->
+      <div id="tokenFields" class="auth-fields" style="display: none;">
+        <div class="form-group">
+          <label for="restUrlToken">REST API URL</label>
+          <input type="text" id="restUrlToken" name="restUrlToken" class="input-field" placeholder="http://your-nas-ip:8000/rest">
+        </div>
+        <div class="form-group">
+          <label for="idToken">Username</label>
+          <input type="text" id="idToken" name="idToken" class="input-field" placeholder="Username">
+        </div>
+        <div class="form-group">
+          <label for="apiToken">API Token</label>
+          <div class="password-container">
+            <input type="password" id="apiToken" name="apiToken" class="input-field" placeholder="vdtn_...">
+            <span class="toggle-password" id="toggleToken">👁️</span>
+          </div>
+          <p class="hint">NAS에서 생성한 API 토큰을 입력하세요</p>
+        </div>
+      </div>
+
+      <!-- Password 방식 -->
+      <div id="passwordFields" class="auth-fields" style="display: none;">
+        <div class="form-group">
+          <label for="restUrl">REST API URL</label>
+          <input type="text" id="restUrl" name="restUrl" class="input-field" placeholder="http://your-nas-ip:8000/rest">
+        </div>
+        <div class="form-group">
+          <label for="id">Username</label>
+          <input type="text" id="id" name="id" class="input-field" placeholder="Username">
+        </div>
+        <div class="form-group">
+          <label for="pw">Password</label>
+          <div class="password-container">
+            <input type="password" id="pw" name="pw" class="input-field" placeholder="Password">
+            <span class="toggle-password" id="togglePassword">👁️</span>
+          </div>
+        </div>
+      </div>
+
+        <button type="submit" class="submit-button">저장</button>
+      </form>
+      
+      <div class="info-box">
+        <p><strong>💡 추천 순서:</strong></p>
+        <p>1. Config URL (가장 간편)</p>
+        <p>2. Username + Token (안전)</p>
+        <p>3. Username + Password (레거시)</p>
+      </div>
+    </div>
+    
     <script src="options.js"></script>
   </body>
 </html>

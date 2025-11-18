@@ -1,10 +1,47 @@
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.querySelector('#options');
-  const saveButton = document.querySelector('.submit-button'); // Save 버튼 요소
-  const togglePassword = document.querySelector('#togglePassword'); // 비밀번호 아이콘
-  const pwField = document.querySelector('#pw'); // 비밀번호 입력 필드
+  const saveButton = document.querySelector('.submit-button');
+  const authMethodSelect = document.querySelector('#authMethod');
+  
+  // 각 인증 방식의 필드 그룹
+  const configUrlFields = document.querySelector('#configUrlFields');
+  const tokenFields = document.querySelector('#tokenFields');
+  const passwordFields = document.querySelector('#passwordFields');
+  
+  // 비밀번호/토큰 표시 토글
+  const togglePassword = document.querySelector('#togglePassword');
+  const toggleToken = document.querySelector('#toggleToken');
+  const pwField = document.querySelector('#pw');
+  const tokenField = document.querySelector('#apiToken');
 
-  chrome.storage.sync.get(['restUrl', 'id', 'pw'], function(items) {
+  // 저장된 설정 불러오기
+  chrome.storage.sync.get([
+    'authMethod', 
+    'configUrl',
+    'restUrl', 'id', 'pw',
+    'restUrlToken', 'idToken', 'apiToken'
+  ], function(items) {
+    // 인증 방법 설정 (기본값: config_url)
+    const authMethod = items.authMethod || 'config_url';
+    authMethodSelect.value = authMethod;
+    showAuthFields(authMethod);
+    
+    // Config URL 방식
+    if (items.configUrl) {
+      form.configUrl.value = items.configUrl;
+    }
+    
+    // Token 방식
+    if (items.restUrlToken) {
+      form.restUrlToken.value = items.restUrlToken;
+    }
+    if (items.idToken) {
+      form.idToken.value = items.idToken;
+    }
+    // API Token은 항상 공란으로 표시
+    form.apiToken.value = '';
+    
+    // Password 방식
     if (items.restUrl) {
       form.restUrl.value = items.restUrl;
     }
@@ -12,73 +49,186 @@ document.addEventListener('DOMContentLoaded', function() {
       form.id.value = items.id;
     }
     // 비밀번호는 항상 공란으로 표시
-    form.pw.value = ''; 
+    form.pw.value = '';
   });
 
-  // 비밀번호 표시/숨기기 기능
-  togglePassword.addEventListener('click', function() {
-    if (pwField.type === 'password') {
-      pwField.type = 'text';
-      togglePassword.textContent = '👁️‍🗨️'; // 비밀번호 표시 중
-    } else {
-      pwField.type = 'password';
-      togglePassword.textContent = '👁️'; // 비밀번호 숨기기 중
+  // 인증 방법 변경 시 필드 표시/숨김
+  authMethodSelect.addEventListener('change', function() {
+    showAuthFields(this.value);
+  });
+
+  function showAuthFields(method) {
+    configUrlFields.style.display = 'none';
+    tokenFields.style.display = 'none';
+    passwordFields.style.display = 'none';
+    
+    if (method === 'config_url') {
+      configUrlFields.style.display = 'block';
+    } else if (method === 'token') {
+      tokenFields.style.display = 'block';
+    } else if (method === 'password') {
+      passwordFields.style.display = 'block';
     }
-  });
+  }
 
+  // 비밀번호 표시/숨기기
+  if (togglePassword) {
+    togglePassword.addEventListener('click', function() {
+      if (pwField.type === 'password') {
+        pwField.type = 'text';
+        togglePassword.textContent = '👁️‍🗨️';
+      } else {
+        pwField.type = 'password';
+        togglePassword.textContent = '👁️';
+      }
+    });
+  }
+
+  // API Token 표시/숨기기
+  if (toggleToken) {
+    toggleToken.addEventListener('click', function() {
+      if (tokenField.type === 'password') {
+        tokenField.type = 'text';
+        toggleToken.textContent = '👁️‍🗨️';
+      } else {
+        tokenField.type = 'password';
+        toggleToken.textContent = '👁️';
+      }
+    });
+  }
+
+  // Config URL 파싱 함수
+  function parseConfigUrl(configUrl) {
+    if (!configUrl || !configUrl.includes('#')) {
+      return null;
+    }
+    
+    const parts = configUrl.split('#');
+    if (parts.length !== 2) {
+      return null;
+    }
+    
+    let serverUrl = parts[0].trim().replace(/\/+$/, '');
+    const token = parts[1].trim();
+    
+    // /rest 엔드포인트 추가
+    const restUrl = serverUrl + '/rest';
+    
+    return { restUrl, token };
+  }
+
+  // 폼 제출
   form.addEventListener('submit', function(event) {
     event.preventDefault();
-    let restUrl = form.restUrl.value.trim();
-    const id = form.id.value.trim();
-    const pw = form.pw.value.trim();
+    
+    const authMethod = authMethodSelect.value;
+    let dataToSave = { authMethod };
     let valid = true;
+    let errorFields = [];
 
-    // 입력 필드 유효성 검사
-    if (!restUrl) {
-      valid = false;
-      form.restUrl.style.border = "1px solid red"; // 빨간 테두리
-    } else {
-      form.restUrl.style.border = ""; // 테두리 초기화
-    }
+    // 모든 필드 테두리 초기화
+    document.querySelectorAll('.input-field').forEach(field => {
+      field.style.border = '';
+    });
 
-    if (!id) {
-      valid = false;
-      form.id.style.border = "1px solid red"; // 빨간 테두리
-    } else {
-      form.id.style.border = ""; // 테두리 초기화
-    }
-
-    if (!pw) {
-      valid = false;
-      form.pw.style.border = "1px solid red"; // 빨간 테두리
-    } else {
-      form.pw.style.border = ""; // 테두리 초기화
-    }
-
-    // 모든 필드가 채워졌을 때만 저장
-    if (valid) {
-      // "/rest"가 없으면 추가
-      if (!restUrl.endsWith('/rest')) {
-        // 마지막 슬래시를 제거하고 추가
-        restUrl = restUrl.replace(/\/+$/, ''); // 중복된 슬래시 제거
-        restUrl += '/rest';
+    if (authMethod === 'config_url') {
+      const configUrl = form.configUrl.value.trim();
+      
+      if (!configUrl) {
+        valid = false;
+        errorFields.push(form.configUrl);
+      } else {
+        // Config URL 파싱
+        const parsed = parseConfigUrl(configUrl);
+        if (!parsed) {
+          valid = false;
+          errorFields.push(form.configUrl);
+          alert('Config URL 형식이 올바르지 않습니다.\n형식: http://server#token');
+        } else {
+          dataToSave.configUrl = configUrl;
+          dataToSave.restUrl = parsed.restUrl;
+          dataToSave.apiToken = parsed.token;
+        }
       }
-
-      chrome.storage.sync.set({ restUrl: restUrl, id: id, pw: pw }, function() {
-        // Save 버튼의 텍스트를 '저장 완료'로 변경
-        saveButton.textContent = '저장 완료!';
-        saveButton.disabled = true; // 저장 완료 후 버튼 비활성화
-
-        // 1초 후에 Save 버튼 원래 텍스트로 복원 및 재활성화
-        setTimeout(function() {
-          saveButton.textContent = '저장';
-          saveButton.disabled = false;
-          window.close(); // 옵션 창 닫기
-        }, 1000);
-      });
-    } else {
-      // 채워지지 않은 필드가 있을 경우 알림 표시
-      alert('모든 필드를 채워주세요.');
+    } else if (authMethod === 'token') {
+      let restUrlToken = form.restUrlToken.value.trim();
+      const idToken = form.idToken.value.trim();
+      const apiToken = form.apiToken.value.trim();
+      
+      if (!restUrlToken) {
+        valid = false;
+        errorFields.push(form.restUrlToken);
+      }
+      if (!idToken) {
+        valid = false;
+        errorFields.push(form.idToken);
+      }
+      if (!apiToken) {
+        valid = false;
+        errorFields.push(form.apiToken);
+      }
+      
+      if (valid) {
+        // /rest 자동 추가
+        if (!restUrlToken.endsWith('/rest')) {
+          restUrlToken = restUrlToken.replace(/\/+$/, '') + '/rest';
+        }
+        
+        dataToSave.restUrlToken = restUrlToken;
+        dataToSave.restUrl = restUrlToken;
+        dataToSave.idToken = idToken;
+        dataToSave.id = idToken;
+        dataToSave.apiToken = apiToken;
+      }
+    } else if (authMethod === 'password') {
+      let restUrl = form.restUrl.value.trim();
+      const id = form.id.value.trim();
+      const pw = form.pw.value.trim();
+      
+      if (!restUrl) {
+        valid = false;
+        errorFields.push(form.restUrl);
+      }
+      if (!id) {
+        valid = false;
+        errorFields.push(form.id);
+      }
+      if (!pw) {
+        valid = false;
+        errorFields.push(form.pw);
+      }
+      
+      if (valid) {
+        // /rest 자동 추가
+        if (!restUrl.endsWith('/rest')) {
+          restUrl = restUrl.replace(/\/+$/, '') + '/rest';
+        }
+        
+        dataToSave.restUrl = restUrl;
+        dataToSave.id = id;
+        dataToSave.pw = pw;
+      }
     }
+
+    // 유효성 검사 실패 시
+    if (!valid) {
+      errorFields.forEach(field => {
+        field.style.border = '1px solid red';
+      });
+      alert('모든 필드를 올바르게 채워주세요.');
+      return;
+    }
+
+    // 저장
+    chrome.storage.sync.set(dataToSave, function() {
+      saveButton.textContent = '저장 완료!';
+      saveButton.disabled = true;
+
+      setTimeout(function() {
+        saveButton.textContent = '저장';
+        saveButton.disabled = false;
+        window.close();
+      }, 1000);
+    });
   });
 });

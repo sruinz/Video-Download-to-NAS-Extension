@@ -1,36 +1,58 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 380px;
+  min-height: 580px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 body {
   font-family: Arial, sans-serif;
-  background-color: #24282b; /* 배경색 */
-  padding: 20px;
-  width: 350px; /* 고정된 너비 설정 */
-  height: auto; /* 높이는 자동으로 조절 */
-  overflow: hidden; /* 스크롤바 숨기기 */
+  background-color: #24282b;
+  padding: 15px;
+  box-sizing: border-box;
+}
+
+.container {
+  width: 100%;
 }
 
 h1 {
   text-align: center;
-  color: #d1d5d9; /* 제목 색상 (더 밝은 회색으로 변경) */
+  color: #d1d5d9;
+  margin-bottom: 3px;
+  font-size: 20px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 12px;
+  margin-top: 0;
+  margin-bottom: 15px;
 }
 
 .form-group {
-  margin-bottom: 15px; /* 필드 간격 */
+  margin-bottom: 12px;
 }
 
 label {
   display: block;
-  margin-bottom: 5px; /* 레이블과 입력 필드 간격 */
-  color: #d1d5d9; /* 레이블 색상 (더 밝은 회색으로 변경) */
+  margin-bottom: 4px;
+  color: #d1d5d9;
+  font-size: 13px;
 }
 
 .input-field {
-  width: 100%; /* 입력 필드 폭을 100%로 설정 */
-  padding: 10px;
-  border: 1px solid #5a5d5f; /* 입력 필드 테두리 */
-  border-radius: 4px; /* 둥근 모서리 */
-  box-sizing: border-box; /* 패딩과 테두리를 포함하여 전체 크기 설정 */
-  font-size: 16px; /* 글자 크기 조정 */
-  background-color: #3a3f43; /* 입력 필드 배경색 (밝은 회색으로 변경) */
-  color: #e9ecef; /* 입력 필드 글씨 색상 (더 밝은 회색으로 변경) */
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #5a5d5f;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 14px;
+  background-color: #3a3f43;
+  color: #e9ecef;
 }
 
 .input-field:focus {
@@ -52,14 +74,15 @@ label {
 }
 
 .submit-button {
-  background-color: #007BFF; /* 버튼 배경색 */
-  color: #e9ecef; /* 버튼 글자 색상 (더 밝은 회색으로 변경) */
-  padding: 10px 15px; /* 버튼 패딩 */
-  border: none; /* 버튼 테두리 제거 */
-  border-radius: 4px; /* 둥근 모서리 */
-  font-size: 16px; /* 글자 크기 조정 */
-  cursor: pointer; /* 커서 모양 변경 */
-  width: 100%; /* 버튼 폭을 100%로 설정 */
+  background-color: #007BFF;
+  color: #e9ecef;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 15px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 5px;
 }
 
 .submit-button:hover {
@@ -69,10 +92,45 @@ label {
 .message {
   margin-top: 10px;
   font-size: 16px;
-  color: green; /* 메시지 색상 */
+  color: green;
 }
 
-/* 비밀번호 입력창에 대한 스타일 */
 .password-container .input-field {
-  padding-right: 40px; /* 아이콘 여백을 위해 오른쪽 패딩 추가 */
+  padding-right: 40px;
+}
+
+.hint {
+  font-size: 11px;
+  color: #888;
+  margin-top: 3px;
+  margin-bottom: 0;
+  line-height: 1.3;
+}
+
+.auth-fields {
+  margin-top: 10px;
+}
+
+.info-box {
+  margin-top: 15px;
+  margin-bottom: 10px;
+  padding: 12px;
+  background-color: #2a3f5f;
+  border-radius: 4px;
+  border-left: 3px solid #007BFF;
+}
+
+.info-box p {
+  color: #d1d5d9;
+  margin: 3px 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.info-box strong {
+  color: #fff;
+}
+
+select.input-field {
+  cursor: pointer;
 }

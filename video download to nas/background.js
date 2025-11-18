@@ -92,11 +92,10 @@ function createContextMenu() {
 // 메뉴 생성
 createContextMenu();
 
-// 컨텍스트 메뉴 클릭 시 처리 (수정된 버전)
+// 컨텍스트 메뉴 클릭 시 처리
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
-  // 클릭된 메뉴가 우리 확장 프로그램 메뉴의 일부인지 확인 (구분선 제외)
   if (!info.menuItemId.startsWith('sep')) {
-    chrome.storage.sync.get(['restUrl', 'id', 'pw'], function(options) {
+    chrome.storage.sync.get(['authMethod', 'restUrl', 'id', 'pw', 'apiToken'], function(options) {
       let url = null;
 
       if (info.linkUrl) {
@@ -108,21 +107,7 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
       }
 
       if (url) {
-        const request = new Request(options.restUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json;charset=UTF-8'
-          },
-          body: JSON.stringify({
-            url: url,
-            // 클릭된 메뉴 ID를 그대로 사용 (예: '1080p', 'srt|ko')
-            resolution: info.menuItemId,
-            id: options.id,
-            pw: options.pw
-          })
-        });
-
-        fetch(request);
+        sendDownloadRequest(options, url, info.menuItemId);
       }
     });
   }
@@ -134,26 +119,61 @@ function isUrl(text) {
   return pattern.test(text);
 }
 
+// 다운로드 요청 전송 함수
+function sendDownloadRequest(options, url, resolution) {
+  const authMethod = options.authMethod || 'password'; // 기본값: password (하위 호환성)
+  
+  // 요청 헤더 준비
+  const headers = {
+    'Content-Type': 'application/json;charset=UTF-8'
+  };
+  
+  // 요청 바디 준비
+  const body = {
+    url: url,
+    resolution: resolution
+  };
+  
+  // 인증 방법에 따라 헤더 또는 바디 설정
+  if (authMethod === 'config_url' || authMethod === 'token') {
+    // Config URL 또는 Token 방식: Authorization 헤더 사용
+    if (options.apiToken) {
+      headers['Authorization'] = `Bearer ${options.apiToken}`;
+    } else {
+      console.error('API Token이 설정되지 않았습니다.');
+      return;
+    }
+  } else {
+    // Password 방식: 바디에 id, pw 포함 (레거시)
+    body.id = options.id;
+    body.pw = options.pw;
+  }
+  
+  // 요청 전송
+  const request = new Request(options.restUrl, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body)
+  });
+  
+  fetch(request)
+    .then(response => {
+      if (!response.ok) {
+        console.error('다운로드 요청 실패:', response.status);
+      }
+    })
+    .catch(error => {
+      console.error('다운로드 요청 오류:', error);
+    });
+}
+
 // 다운로드 요청 처리
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'downloadVideo') {
     const { url } = request;
 
-    chrome.storage.sync.get(['restUrl', 'id', 'pw'], function(options) {
-      const request = new Request(options.restUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json;charset=UTF-8'
-        },
-        body: JSON.stringify({
-          url: url,
-          resolution: 'best', // 해상도 기본값 설정
-          id: options.id,
-          pw: options.pw
-        })
-      });
-
-      fetch(request);
+    chrome.storage.sync.get(['authMethod', 'restUrl', 'id', 'pw', 'apiToken'], function(options) {
+      sendDownloadRequest(options, url, 'best');
     });
   }
 });
