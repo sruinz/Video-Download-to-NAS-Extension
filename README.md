@@ -35,7 +35,7 @@ VDtN 서버 토큰 인증 기능 추가
 
 <img width="500" height="625" alt="스크린샷 2025-11-18 13 02 37" src="https://github.com/user-attachments/assets/b86836b1-126c-4619-98d9-b3c69c123427" />
 
-
+![설명1](https://github.com/sruinz/youtube-dl-nas-extension/assets/63243848/1f459f0e-9a0c-4974-a59a-9a35bab3bed7)
 ![설명2](https://github.com/user-attachments/assets/940b8840-7b71-45f8-ae5f-62aad261a9a2)
 ![설명3](https://github.com/user-attachments/assets/2eace179-a4fa-4dc1-aca7-6da8c822a465)
 
