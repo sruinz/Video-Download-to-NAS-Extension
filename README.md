@@ -41,8 +41,7 @@ VDtN 서버 토큰 인증 기능 추가
 
 
 
-시놀로지 나스 도커에서 실행 가능한 Video Download to nas 의 확장 프로그램 입니다.
-(https://svrforum.com/nas/2866255)
+시놀로지 나스 도커에서 실행 가능한 Video Download to nas 서버 의 확장 프로그램 입니다.
 
 영상 링크 우 클릭 또는 영상 텍스트 드래그 후 우 클릭시 
 컨텍스트 메뉴가 표시됩니다.
