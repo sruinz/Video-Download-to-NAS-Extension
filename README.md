@@ -61,7 +61,7 @@ VDtN 서버 토큰 인증 기능 추가
 
 이 확장 프로그램을 사용하기 위해서는 https://svrforum.com/nas/2866255 서비스를 나스에 설치 해야 합니다
 
-가이드 : https://svrforum.com/nas/1764971
+가이드 : [https://svrforum.com/nas/1764971](https://svrforum.com/nas/2866255)
 
 설정에는 Video Download to nas 에서 설정한 아이디, 패스워드와 
 
