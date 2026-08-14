@@ -92,19 +92,48 @@ function createContextMenu() {
 // 메뉴 생성
 createContextMenu();
 
+function normalizeHttpUrl(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+  try {
+    const parsedUrl = new URL(trimmedValue);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return null;
+    }
+    return trimmedValue;
+  } catch (error) {
+    return null;
+  }
+}
+
+function resolveContextMenuUrl(info, tab) {
+  const linkUrl = normalizeHttpUrl(info.linkUrl);
+  if (linkUrl) {
+    return linkUrl;
+  }
+
+  const selectionUrl = normalizeHttpUrl(info.selectionText);
+  if (selectionUrl) {
+    return selectionUrl;
+  }
+
+  if (info.mediaType === 'video') {
+    return normalizeHttpUrl(info.srcUrl)
+      || normalizeHttpUrl(info.pageUrl)
+      || normalizeHttpUrl(tab && tab.url);
+  }
+
+  return null;
+}
+
 // 컨텍스트 메뉴 클릭 시 처리
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
   if (!info.menuItemId.startsWith('sep')) {
     chrome.storage.sync.get(['authMethod', 'restUrl', 'id', 'pw', 'apiToken'], function(options) {
-      let url = null;
-
-      if (info.linkUrl) {
-        url = info.linkUrl;
-      } else if (info.selectionText && isUrl(info.selectionText)) {
-        url = info.selectionText;
-      } else if (info.srcUrl && info.mediaType === 'video') {
-        url = info.srcUrl;
-      }
+      const url = resolveContextMenuUrl(info, tab);
 
       if (url) {
         sendDownloadRequest(options, url, info.menuItemId);
@@ -113,14 +142,14 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
   }
 });
 
-// URL 유효성 검증
-function isUrl(text) {
-  const pattern = /^(http|https):\/\/[^\s/$.?#].[^\s]*$/i;
-  return pattern.test(text);
-}
-
 // 다운로드 요청 전송 함수
 function sendDownloadRequest(options, url, resolution) {
+  const validatedUrl = normalizeHttpUrl(url);
+  if (!validatedUrl) {
+    console.error('지원하지 않는 URL이라 다운로드 요청을 보내지 않았습니다.');
+    return;
+  }
+
   const authMethod = options.authMethod || 'password'; // 기본값: password (하위 호환성)
   
   // 요청 헤더 준비
@@ -130,7 +159,7 @@ function sendDownloadRequest(options, url, resolution) {
   
   // 요청 바디 준비
   const body = {
-    url: url,
+    url: validatedUrl,
     resolution: resolution
   };
   
