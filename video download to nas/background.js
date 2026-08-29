@@ -1,96 +1,120 @@
-console.log("Service Worker started.");
+importScripts('queue.js');
 
-// VDtN 아이콘을 클릭하면 현재 페이지의 다운로드 가능한 비디오들을 찾는 메시지 전송
-chrome.action.onClicked.addListener((tab) => {
-  console.log("VDtN icon clicked.");
+const QUEUE_STORAGE_KEY = 'vdtnDownloadQueue';
+const SESSION_STORAGE_KEY = 'vdtnQueueSessionActive';
+const RETRY_ALARM_NAME = 'vdtnQueueRetry';
+const WATCHDOG_DELAY_MS = 30_000;
+const INTERRUPTED_ERROR = '전송이 중단되어 서버 접수 여부를 확인해 주세요.';
+const OPTION_KEYS = ['authMethod', 'restUrl', 'id', 'pw', 'apiToken'];
 
-  // 탭이 유효한지 검사
-  if (tab && tab.id) {
-    chrome.tabs.sendMessage(tab.id, { action: 'findVideos' }, (response) => {
+let queueState = null;
+let processingPromise = null;
+let saveChain = Promise.resolve();
+
+function storageGet(area, keys) {
+  return new Promise((resolve, reject) => {
+    area.get(keys, (result) => {
       if (chrome.runtime.lastError) {
-        console.error("메시지 전송 실패: ", chrome.runtime.lastError);
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
       }
-    });
-  } else {
-    console.error("유효하지 않은 탭입니다.");
-  }
-});
-
-// 메뉴를 생성하는 함수 (수정된 버전)
-function createContextMenu() {
-  chrome.contextMenus.removeAll(() => {
-    // 1. 최상위 부모 메뉴 생성
-    chrome.contextMenus.create({
-      id: 'my-extension',
-      title: 'Download with VDtN',
-      contexts: ['link', 'selection', 'video']
-    });
-
-    // 2. 일반 해상도 및 오디오 메뉴 생성
-    const resolutions = [
-      'best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p'
-    ];
-    resolutions.forEach(function(resolution) {
-      chrome.contextMenus.create({
-        parentId: 'my-extension',
-        id: resolution,
-        title: resolution,
-        type: 'radio',
-        contexts: ['link', 'selection', 'video']
-      });
-    });
-    
-    // 구분선 추가
-    chrome.contextMenus.create({ parentId: 'my-extension', id: 'sep1', type: 'separator', contexts: ['link', 'selection', 'video']});
-
-    const audioFormats = ['audio-m4a', 'audio-mp3'];
-    audioFormats.forEach(function(format) {
-        chrome.contextMenus.create({
-            parentId: 'my-extension',
-            id: format,
-            title: format,
-            type: 'radio',
-            contexts: ['link', 'selection', 'video']
-        });
-    });
-
-    // 구분선 추가
-    chrome.contextMenus.create({ parentId: 'my-extension', id: 'sep2', type: 'separator', contexts: ['link', 'selection', 'video']});
-
-    // 3. 자막 메뉴와 하위 언어 메뉴 생성
-    const subtitleFormats = ['srt', 'vtt'];
-    const languages = [
-      { code: 'ko', title: 'Korean' },
-      { code: 'en', title: 'English' },
-      { code: 'ja', title: 'Japanese' }
-    ];
-
-    subtitleFormats.forEach(format => {
-      // 'srt', 'vtt' 폴더 메뉴 생성
-      const parentId = `${format}-parent`;
-      chrome.contextMenus.create({
-        parentId: 'my-extension',
-        id: parentId,
-        title: format,
-        contexts: ['link', 'selection', 'video']
-      });
-      // 각 언어 자식 메뉴 생성
-      languages.forEach(lang => {
-        chrome.contextMenus.create({
-          parentId: parentId,
-          // ID 자체에 언어 코드를 포함 (예: 'srt|ko')
-          id: `${format}|${lang.code}`,
-          title: lang.title,
-          type: 'radio',
-          contexts: ['link', 'selection', 'video']
-        });
-      });
+      resolve(result);
     });
   });
 }
 
-// 메뉴 생성
-createContextMenu();
+function storageSet(area, values) {
+  return new Promise((resolve, reject) => {
+    area.set(values, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function restoreQueueState(storedState) {
+  const state = VdtnQueue.createState();
+  if (!storedState || !Array.isArray(storedState.items)) {
+    return state;
+  }
+
+  state.nextItemId = Number.isInteger(storedState.nextItemId)
+    ? storedState.nextItemId
+    : storedState.items.length + 1;
+  state.nextBatchId = Number.isInteger(storedState.nextBatchId)
+    ? storedState.nextBatchId
+    : 1;
+  state.paused = storedState.paused === true;
+  state.resumeRequired = storedState.resumeRequired === true;
+  state.items = storedState.items.map((item) => ({ ...item }));
+  return state;
+}
+
+function failInterruptedSending() {
+  for (const item of queueState.items) {
+    if (item.status === 'sending') {
+      VdtnQueue.updateItem(queueState, item.id, {
+        status: 'failed',
+        error: INTERRUPTED_ERROR,
+        retryAt: null
+      });
+    }
+  }
+}
+
+async function updateBadge() {
+  if (!queueState) {
+    return;
+  }
+  const summary = VdtnQueue.getSummary(queueState);
+  const unaccepted = summary.outstanding + summary.failed;
+  const badgeText = unaccepted > 0 ? String(Math.min(unaccepted, 999)) : '';
+  const color = summary.failed > 0 ? '#c62828' : '#0f766e';
+
+  await chrome.action.setBadgeBackgroundColor({ color });
+  await chrome.action.setBadgeText({ text: badgeText });
+}
+
+function saveQueueState() {
+  const snapshot = clone(queueState);
+  const writePromise = saveChain.then(async () => {
+    await storageSet(chrome.storage.local, { [QUEUE_STORAGE_KEY]: snapshot });
+  });
+  saveChain = writePromise.catch(() => {});
+  return writePromise.then(updateBadge);
+}
+
+async function initializeQueue() {
+  const [localResult, sessionResult] = await Promise.all([
+    storageGet(chrome.storage.local, [QUEUE_STORAGE_KEY]),
+    storageGet(chrome.storage.session, [SESSION_STORAGE_KEY])
+  ]);
+  const sameBrowserSession = sessionResult[SESSION_STORAGE_KEY] === true;
+  queueState = restoreQueueState(localResult[QUEUE_STORAGE_KEY]);
+
+  await storageSet(chrome.storage.session, { [SESSION_STORAGE_KEY]: true });
+
+  if (sameBrowserSession) {
+    failInterruptedSending();
+  } else if (VdtnQueue.getSummary(queueState).outstanding > 0) {
+    queueState.paused = true;
+    queueState.resumeRequired = true;
+  }
+
+  await saveQueueState();
+}
+
+const initializationPromise = initializeQueue();
+initializationPromise
+  .then(() => startQueueProcessing())
+  .catch((error) => console.error('전송 대기열 초기화 실패:', error));
 
 function normalizeHttpUrl(value) {
   if (typeof value !== 'string') {
@@ -103,7 +127,7 @@ function normalizeHttpUrl(value) {
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       return null;
     }
-    return trimmedValue;
+    return parsedUrl.href;
   } catch (error) {
     return null;
   }
@@ -129,80 +153,393 @@ function resolveContextMenuUrl(info, tab) {
   return null;
 }
 
-// 컨텍스트 메뉴 클릭 시 처리
-chrome.contextMenus.onClicked.addListener(function(info, tab) {
-  if (!info.menuItemId.startsWith('sep')) {
-    chrome.storage.sync.get(['authMethod', 'restUrl', 'id', 'pw', 'apiToken'], function(options) {
-      const url = resolveContextMenuUrl(info, tab);
+function parseRetryAt(response, now = Date.now()) {
+  const retryAfter = response.headers.get('Retry-After');
+  if (retryAfter !== null) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) {
+      return now + Math.max(0, seconds) * 1000;
+    }
+    const dateValue = Date.parse(retryAfter);
+    if (Number.isFinite(dateValue)) {
+      return Math.max(now, dateValue);
+    }
+  }
 
-      if (url) {
-        sendDownloadRequest(options, url, info.menuItemId);
+  const resetValue = Number(response.headers.get('X-RateLimit-Reset'));
+  if (Number.isFinite(resetValue) && resetValue > 0) {
+    if (resetValue > 1_000_000_000_000) {
+      return resetValue;
+    }
+    if (resetValue > 1_000_000_000) {
+      return resetValue * 1000;
+    }
+    return now + resetValue * 1000;
+  }
+  return now + 60_000;
+}
+
+async function readResponseBody(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return {};
+  }
+}
+
+async function sendDownloadRequest(options, url, resolution, filename) {
+  const validatedUrl = normalizeHttpUrl(url);
+  const restUrl = normalizeHttpUrl(options && options.restUrl);
+  if (!validatedUrl) {
+    return { kind: 'failed', error: '지원하지 않는 영상 주소입니다.' };
+  }
+  if (!restUrl) {
+    return { kind: 'failed', error: 'VDtN 서버 주소를 확인해 주세요.' };
+  }
+
+  const authMethod = options.authMethod || 'password';
+  const headers = { 'Content-Type': 'application/json;charset=UTF-8' };
+  const body = { url: validatedUrl, resolution: resolution || 'best' };
+  if (typeof filename === 'string' && filename.trim()) {
+    body.filename = filename.trim();
+  }
+
+  if (authMethod === 'config_url' || authMethod === 'token') {
+    if (!options.apiToken) {
+      return { kind: 'failed', error: 'API 토큰이 설정되지 않았습니다.' };
+    }
+    headers.Authorization = `Bearer ${options.apiToken}`;
+  } else {
+    body.id = options.id;
+    body.pw = options.pw;
+  }
+
+  try {
+    const response = await fetch(new Request(restUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    }));
+
+    if (response.ok) {
+      const responseBody = await readResponseBody(response);
+      return {
+        kind: 'accepted',
+        downloadId: responseBody.download_id || responseBody.downloadId || null
+      };
+    }
+    if (response.status === 429) {
+      return { kind: 'waiting', retryAt: parseRetryAt(response) };
+    }
+    return { kind: 'failed', error: `서버 응답 오류 (${response.status})` };
+  } catch (error) {
+    return { kind: 'failed', error: error.message || '서버 연결에 실패했습니다.' };
+  }
+}
+
+async function getOptions() {
+  return storageGet(chrome.storage.sync, OPTION_KEYS);
+}
+
+function scheduleRetry(retryAt) {
+  chrome.alarms.create(RETRY_ALARM_NAME, {
+    when: Math.max(retryAt, Date.now() + 1000)
+  });
+}
+
+function scheduleQueueWake() {
+  if (queueState.paused || queueState.resumeRequired) {
+    return;
+  }
+  const nextItem = queueState.items.find((item) => (
+    item.status === 'pending' || item.status === 'sending' || item.status === 'waiting'
+  ));
+  if (!nextItem) {
+    return;
+  }
+  if (nextItem.status === 'waiting' && nextItem.retryAt > Date.now()) {
+    scheduleRetry(nextItem.retryAt);
+    return;
+  }
+  scheduleRetry(Date.now() + WATCHDOG_DELAY_MS);
+}
+
+async function runQueueProcessor() {
+  while (!queueState.paused && !queueState.resumeRequired) {
+    const nextItem = queueState.items.find((item) => (
+      item.status === 'pending' || item.status === 'sending' || item.status === 'waiting'
+    ));
+    if (!nextItem) {
+      await chrome.alarms.clear(RETRY_ALARM_NAME);
+      const addedWhileClearing = queueState.items.some((item) => (
+        item.status === 'pending' || item.status === 'sending' || item.status === 'waiting'
+      ));
+      if (addedWhileClearing) {
+        continue;
+      }
+      break;
+    }
+
+    if (nextItem.status === 'waiting') {
+      if (nextItem.retryAt && nextItem.retryAt > Date.now()) {
+        scheduleRetry(nextItem.retryAt);
+        break;
+      }
+      VdtnQueue.updateItem(queueState, nextItem.id, {
+        status: 'pending',
+        retryAt: null
+      });
+    }
+
+    if (nextItem.status === 'sending') {
+      VdtnQueue.updateItem(queueState, nextItem.id, { status: 'pending' });
+    }
+
+    VdtnQueue.updateItem(queueState, nextItem.id, {
+      status: 'sending',
+      error: null
+    });
+    await saveQueueState();
+    scheduleQueueWake();
+
+    const result = await sendDownloadRequest(
+      await getOptions(),
+      nextItem.url,
+      nextItem.resolution,
+      nextItem.title
+    );
+
+    if (result.kind === 'accepted') {
+      VdtnQueue.updateItem(queueState, nextItem.id, {
+        status: 'accepted',
+        downloadId: result.downloadId,
+        error: null,
+        retryAt: null
+      });
+      await saveQueueState();
+      continue;
+    }
+    if (result.kind === 'waiting') {
+      VdtnQueue.updateItem(queueState, nextItem.id, {
+        status: 'waiting',
+        retryAt: result.retryAt,
+        error: '서버 요청 제한으로 대기 중입니다.'
+      });
+      await saveQueueState();
+      scheduleRetry(result.retryAt);
+      break;
+    }
+
+    VdtnQueue.updateItem(queueState, nextItem.id, {
+      status: 'failed',
+      error: result.error,
+      retryAt: null
+    });
+    await saveQueueState();
+  }
+}
+
+function startQueueProcessing() {
+  scheduleQueueWake();
+  if (processingPromise) {
+    return processingPromise;
+  }
+  processingPromise = runQueueProcessor()
+    .catch((error) => console.error('전송 대기열 처리 실패:', error))
+    .finally(() => {
+      processingPromise = null;
+    });
+  return processingPromise;
+}
+
+async function enqueueDownloads(candidates, source) {
+  await initializationPromise;
+  const validCandidates = (Array.isArray(candidates) ? candidates : [])
+    .map((candidate) => ({
+      url: normalizeHttpUrl(candidate && candidate.url),
+      title: candidate && candidate.title,
+      resolution: candidate && candidate.resolution
+    }))
+    .filter((candidate) => candidate.url);
+  const result = VdtnQueue.enqueue(
+    queueState,
+    validCandidates,
+    source || {},
+    Date.now()
+  );
+  await saveQueueState();
+  startQueueProcessing();
+  return { ok: true, ...result, summary: VdtnQueue.getSummary(queueState) };
+}
+
+function queueResponse() {
+  return {
+    ok: true,
+    state: clone(queueState),
+    summary: VdtnQueue.getSummary(queueState)
+  };
+}
+
+async function handleQueueMessage(request, sender) {
+  await initializationPromise;
+
+  if (request.action === 'enqueueDownloads') {
+    return enqueueDownloads(request.candidates, request.source);
+  }
+  if (request.action === 'downloadVideo') {
+    return enqueueDownloads(
+      [{ url: request.url, resolution: request.resolution || 'best' }],
+      {
+        title: sender && sender.tab ? sender.tab.title : '',
+        url: sender && sender.tab ? sender.tab.url : ''
+      }
+    );
+  }
+  if (request.action === 'getQueueState') {
+    return queueResponse();
+  }
+  if (request.action === 'pauseQueue') {
+    queueState.paused = true;
+    queueState.resumeRequired = false;
+    await saveQueueState();
+    return queueResponse();
+  }
+  if (request.action === 'resumeQueue') {
+    const recoveryRequired = queueState.resumeRequired;
+    queueState.paused = false;
+    queueState.resumeRequired = false;
+    if (recoveryRequired) {
+      failInterruptedSending();
+    }
+    await saveQueueState();
+    startQueueProcessing();
+    return queueResponse();
+  }
+  if (request.action === 'retryFailed') {
+    const changed = VdtnQueue.retryFailed(queueState);
+    await saveQueueState();
+    startQueueProcessing();
+    return { ...queueResponse(), changed };
+  }
+  if (request.action === 'removePending') {
+    const changed = VdtnQueue.removePending(queueState);
+    await saveQueueState();
+    return { ...queueResponse(), changed };
+  }
+  if (request.action === 'clearAccepted') {
+    const changed = VdtnQueue.clearAccepted(queueState);
+    await saveQueueState();
+    return { ...queueResponse(), changed };
+  }
+  return { ok: false, error: '지원하지 않는 요청입니다.' };
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  handleQueueMessage(request, sender)
+    .then(sendResponse)
+    .catch((error) => sendResponse({ ok: false, error: error.message }));
+  return true;
+});
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== RETRY_ALARM_NAME) {
+    return;
+  }
+  await initializationPromise;
+  if (queueState.paused || queueState.resumeRequired) {
+    return;
+  }
+  const now = Date.now();
+  for (const item of queueState.items) {
+    if (item.status === 'waiting' && (!item.retryAt || item.retryAt <= now)) {
+      item.status = 'pending';
+      item.retryAt = null;
+      item.error = null;
+    }
+  }
+  await saveQueueState();
+  return startQueueProcessing();
+});
+
+chrome.action.onClicked.addListener((tab) => {
+  if (tab && tab.id) {
+    chrome.tabs.sendMessage(tab.id, { action: 'findVideos' }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('영상 선택 화면을 열지 못했습니다:', chrome.runtime.lastError);
       }
     });
   }
 });
 
-// 다운로드 요청 전송 함수
-function sendDownloadRequest(options, url, resolution) {
-  const validatedUrl = normalizeHttpUrl(url);
-  if (!validatedUrl) {
-    console.error('지원하지 않는 URL이라 다운로드 요청을 보내지 않았습니다.');
-    return;
-  }
-
-  const authMethod = options.authMethod || 'password'; // 기본값: password (하위 호환성)
-  
-  // 요청 헤더 준비
-  const headers = {
-    'Content-Type': 'application/json;charset=UTF-8'
-  };
-  
-  // 요청 바디 준비
-  const body = {
-    url: validatedUrl,
-    resolution: resolution
-  };
-  
-  // 인증 방법에 따라 헤더 또는 바디 설정
-  if (authMethod === 'config_url' || authMethod === 'token') {
-    // Config URL 또는 Token 방식: Authorization 헤더 사용
-    if (options.apiToken) {
-      headers['Authorization'] = `Bearer ${options.apiToken}`;
-    } else {
-      console.error('API Token이 설정되지 않았습니다.');
-      return;
-    }
-  } else {
-    // Password 방식: 바디에 id, pw 포함 (레거시)
-    body.id = options.id;
-    body.pw = options.pw;
-  }
-  
-  // 요청 전송
-  const request = new Request(options.restUrl, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(body)
-  });
-  
-  fetch(request)
-    .then(response => {
-      if (!response.ok) {
-        console.error('다운로드 요청 실패:', response.status);
-      }
-    })
-    .catch(error => {
-      console.error('다운로드 요청 오류:', error);
+function createContextMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'my-extension',
+      title: 'Download with VDtN',
+      contexts: ['link', 'selection', 'video']
     });
+
+    const resolutions = [
+      'best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p'
+    ];
+    for (const resolution of resolutions) {
+      chrome.contextMenus.create({
+        parentId: 'my-extension',
+        id: resolution,
+        title: resolution,
+        type: 'radio',
+        contexts: ['link', 'selection', 'video']
+      });
+    }
+
+    chrome.contextMenus.create({
+      parentId: 'my-extension', id: 'sep1', type: 'separator',
+      contexts: ['link', 'selection', 'video']
+    });
+    for (const format of ['audio-m4a', 'audio-mp3']) {
+      chrome.contextMenus.create({
+        parentId: 'my-extension', id: format, title: format, type: 'radio',
+        contexts: ['link', 'selection', 'video']
+      });
+    }
+
+    chrome.contextMenus.create({
+      parentId: 'my-extension', id: 'sep2', type: 'separator',
+      contexts: ['link', 'selection', 'video']
+    });
+    const languages = [
+      { code: 'ko', title: 'Korean' },
+      { code: 'en', title: 'English' },
+      { code: 'ja', title: 'Japanese' }
+    ];
+    for (const format of ['srt', 'vtt']) {
+      const parentId = `${format}-parent`;
+      chrome.contextMenus.create({
+        parentId: 'my-extension', id: parentId, title: format,
+        contexts: ['link', 'selection', 'video']
+      });
+      for (const language of languages) {
+        chrome.contextMenus.create({
+          parentId, id: `${format}|${language.code}`, title: language.title,
+          type: 'radio', contexts: ['link', 'selection', 'video']
+        });
+      }
+    }
+  });
 }
 
-// 다운로드 요청 처리
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === 'downloadVideo') {
-    const { url } = request;
+createContextMenu();
 
-    chrome.storage.sync.get(['authMethod', 'restUrl', 'id', 'pw', 'apiToken'], function(options) {
-      sendDownloadRequest(options, url, 'best');
-    });
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (String(info.menuItemId).startsWith('sep')) {
+    return;
   }
+  const url = resolveContextMenuUrl(info, tab);
+  if (!url) {
+    return;
+  }
+  await enqueueDownloads(
+    [{ url, resolution: String(info.menuItemId) }],
+    { title: tab && tab.title ? tab.title : '', url: tab && tab.url ? tab.url : '' }
+  );
 });

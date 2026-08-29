@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Video Download to NAS",
-  "version": "1.2.1",
+  "version": "1.2.2",
+  "minimum_chrome_version": "102",
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",
@@ -10,7 +11,8 @@
   "permissions": [
     "contextMenus",
     "storage",
-    "activeTab"
+    "activeTab",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"
