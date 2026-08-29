@@ -1,7 +1,16 @@
 # Video Download to NAS Extension
-[![엣지 스토어](https://img.shields.io/badge/엣지%20스토어-v1.2.1-0078D4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+TWljcm9zb2Z0IEVkZ2U8L3RpdGxlPjxwYXRoIGZpbGw9IndoaXRlIiBkPSJNMTIuMzUyIDI0QzUuNTMgMjQgMCAxOC40NyAwIDExLjY0OCAwIDUuNTMgNS41MyAwIDEyLjM1NiAwYzUuNzI3IDAgOS41MDggMy4yMiAxMC40NSA3LjQyNGwtMy4zMzIgMS4yNThjLS44LTIuNjEtMi43My00LjUyNC02LjkyNC00LjUyNC00LjIyIDAtNy4zOSAzLjAxNS03LjM5IDcuNDkgMCA0LjQ1IDMuMTcgNy40OSA3LjM5IDcuNDkgNC4xOTQgMCA2LjEyNC0xLjkxNCA2LjkyNC00LjUyNGwzLjMzMiAxLjI1OEMyMS44NiAyMC43OCAxOC4wOCAyNCAxMi4zNTIgMjR6bS40MjItMTIuMjYySDUuMTk1djEuODE1aDcuNTh2LTEuODE1eiIvPjwvc3ZnPg==)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)[![크롬 스토어](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=%ED%81%AC%EB%A1%AC%20%EC%8A%A4%ED%86%A0%EC%96%B4&logo=google-chrome&logoColor=white&style=flat-square)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
+![현재 소스](https://img.shields.io/badge/현재%20소스-v1.2.2-2ea44f?style=flat-square)
+[![엣지 스토어](https://img.shields.io/badge/엣지%20스토어-v1.2.1-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)
+[![크롬 스토어](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=%ED%81%AC%EB%A1%AC%20%EC%8A%A4%ED%86%A0%EC%96%B4&logo=googlechrome&logoColor=white&style=flat-square)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
 
 Video Download to nas 의 크롬 엣지 확장 프로그램입니다.
+
+1.2.2 업데이트 내용:
+현재 페이지의 여러 영상을 카드 목록에서 한 번에 선택해 전송 대기열에 추가하는 일괄 전송 기능 추가
+
+전송 대기열에서 서버 접수 상태 확인, 일시정지·재개, 실패 항목 재시도, 대기 항목 및 접수 완료 항목 정리 기능 추가
+
+영상 썸네일과 원본 파일명 표시를 개선하고 영상 선택 및 전송 대기열 UI/UX 개편
 
 1.2.1 업데이트 내용:
 브라우저 로컬 미디어 URL 처리 개선
@@ -40,7 +49,7 @@ VDtN 서버 토큰 인증 기능 추가
 
 ![설명1](https://github.com/sruinz/youtube-dl-nas-extension/assets/63243848/1f459f0e-9a0c-4974-a59a-9a35bab3bed7)
 
-![설명3](https://github.com/user-attachments/assets/2eace179-a4fa-4dc1-aca7-6da8c822a465)
+![VDtN 1.2.2 여러 영상 선택 및 일괄 전송 화면](images/VDtN-v1.2.2-batch-transfer-1280x800.png)
 
 
 
@@ -55,7 +64,12 @@ VDtN 서버 토큰 인증 기능 추가
 
 브라우저의 확장 프로그램 아이콘을 클릭 했을 때 현재 페이지에서 나스로 다운로드 가능한 영상이 있을 경우
 
-오버레이에 목록이 표시되고 클릭을 했을 때 저장이 되는 기능을 추가 했습니다
+카드 목록이 표시되고 여러 영상을 선택해 전송 대기열에 추가할 수 있습니다.
+
+전송 대기열은 다른 페이지로 이동하거나 선택 화면을 닫아도 백그라운드에서 순서대로 서버에 요청합니다.
+브라우저를 완전히 종료했다가 다시 실행한 경우에는 대기열 화면에서 재개해야 합니다.
+
+확장 프로그램의 `접수 완료` 표시는 VDtN 서버가 요청을 받은 상태를 뜻합니다. 실제 파일 다운로드 진행과 완료 여부는 VDtN 서버 화면에서 확인해야 합니다.
 
 
 이 확장 프로그램을 사용하기 위해서는 Video Download to nas 서버 서비스를 나스에 설치 해야 합니다
@@ -66,7 +80,7 @@ VDtN 서버 토큰 인증 기능 추가
 
 Video Download to nas의 웹페이지 주소를 rest api 부분에 입력해 준 후 저장 버튼을 눌러 저장합니다.
 
-영상 링크 화면에서 우클릭 후 컨텍스트 메뉴에서 해상도를 선택 또는 오버레이에서 영상을 선택
+영상 링크 화면에서 우클릭 후 컨텍스트 메뉴에서 해상도를 선택하거나 카드 목록에서 영상을 선택해 전송 대기열에 추가합니다.
 
 그 후 나스의 폴더에 정상적으로 다운로드가 됐는지 확인 해보시고 
 
