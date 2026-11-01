@@ -187,6 +187,45 @@ async function readResponseBody(response) {
   }
 }
 
+function isEligibleCustomFilename(filename, targetUrl) {
+  if (typeof filename !== 'string') {
+    return false;
+  }
+  const trimmed = filename.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (normalizeHttpUrl(trimmed) || /^https?:\/\//i.test(trimmed)) {
+    return false;
+  }
+  if (targetUrl) {
+    const normalizedTarget = normalizeHttpUrl(targetUrl);
+    if (trimmed === targetUrl.trim() || (normalizedTarget && trimmed === normalizedTarget)) {
+      return false;
+    }
+  }
+  if (/^watch[\?_]v=/i.test(trimmed)) {
+    return false;
+  }
+  const genericNames = new Set(['videoplayback', 'playlist', 'manifest', 'video', 'audio', 'master']);
+  if (genericNames.has(trimmed.toLowerCase())) {
+    return false;
+  }
+  if (targetUrl) {
+    try {
+      const parsedTarget = new URL(targetUrl);
+      const segments = parsedTarget.pathname.split('/').filter(Boolean);
+      const lastSegment = segments.at(-1);
+      if (lastSegment && trimmed === lastSegment && !/\.[a-z0-9]{2,6}$/i.test(trimmed)) {
+        return false;
+      }
+    } catch (_error) {
+      // ignore URL parsing error
+    }
+  }
+  return true;
+}
+
 async function sendDownloadRequest(options, url, resolution, filename) {
   const validatedUrl = normalizeHttpUrl(url);
   const restUrl = normalizeHttpUrl(options && options.restUrl);
@@ -200,7 +239,7 @@ async function sendDownloadRequest(options, url, resolution, filename) {
   const authMethod = options.authMethod || 'password';
   const headers = { 'Content-Type': 'application/json;charset=UTF-8' };
   const body = { url: validatedUrl, resolution: resolution || 'best' };
-  if (typeof filename === 'string' && filename.trim()) {
+  if (isEligibleCustomFilename(filename, validatedUrl)) {
     body.filename = filename.trim();
   }
 

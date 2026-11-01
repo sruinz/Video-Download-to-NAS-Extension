@@ -1,9 +1,14 @@
 # Video Download to NAS Extension
-![현재 소스](https://img.shields.io/badge/현재%20소스-v1.2.2-2ea44f?style=flat-square)
+![현재 소스](https://img.shields.io/badge/현재%20소스-v1.2.3-2ea44f?style=flat-square)
 [![엣지 스토어](https://img.shields.io/badge/엣지%20스토어-v1.2.1-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/youtubedl-to-nas/idefjkbcbhgokgenjingeleopmficace?hl=ko)
 [![크롬 스토어](https://img.shields.io/chrome-web-store/v/fchehlladkkanoekpjffcfffpfbdaalj?label=%ED%81%AC%EB%A1%AC%20%EC%8A%A4%ED%86%A0%EC%96%B4&logo=googlechrome&logoColor=white&style=flat-square)](https://chromewebstore.google.com/detail/video-download-to-nas/fchehlladkkanoekpjffcfffpfbdaalj?hl=ko)
 
 Video Download to nas 의 크롬 엣지 확장 프로그램입니다.
+
+1.2.3 업데이트 내용:
+영상 다운로드 요청 시 URL 또는 비디오 ID가 파일명으로 잘못 전달되어 서버 저장 파일명이 왜곡되는 문제 수정
+
+실제 첨부 파일명이 있는 경우에만 파일명을 서버에 전달하도록 개선
 
 1.2.2 업데이트 내용:
 현재 페이지의 여러 영상을 카드 목록에서 한 번에 선택해 전송 대기열에 추가하는 일괄 전송 기능 추가
