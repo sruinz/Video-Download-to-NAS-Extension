@@ -35,7 +35,15 @@
   }
 
   function addCandidate(candidates, seenUrls, url, details) {
-    if (!url || seenUrls.has(url)) return;
+    if (!url) return;
+    if (seenUrls.has(url)) {
+      const existing = candidates.find((item) => item.url === url);
+      if (existing && details.video && (!existing.video || (existing.video.paused !== false && details.video.paused === false))) {
+        existing.video = details.video;
+        if (!existing.poster && details.poster) existing.poster = details.poster;
+      }
+      return;
+    }
     const parsed = new URL(url);
     seenUrls.add(url);
     candidates.push({
@@ -77,9 +85,134 @@
     return '';
   }
 
+  function isXDomain(value) {
+    const url = toHttpUrl(value);
+    if (!url) return false;
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === 'x.com'
+      || hostname.endsWith('.x.com')
+      || hostname === 'twitter.com'
+      || hostname.endsWith('.twitter.com');
+  }
+
+  function isArticleBoundary(element) {
+    if (!element) return false;
+    return element.tagName === 'ARTICLE'
+      || element.getAttribute?.('role') === 'article'
+      || element.getAttribute?.('data-testid') === 'tweet';
+  }
+
+  function findPostContainer(video) {
+    let element = video;
+    while (element) {
+      if (isArticleBoundary(element)) {
+        return element;
+      }
+      element = element.parentElement;
+    }
+    if (typeof video?.closest === 'function') {
+      const closestArticle = video.closest('article, [role="article"], [data-testid="tweet"]');
+      if (closestArticle) return closestArticle;
+    }
+    return video?.parentElement || null;
+  }
+
+  function collectStatusLinks(element) {
+    if (!element) return [];
+    if (typeof element.querySelectorAll === 'function') {
+      const matched = Array.from(element.querySelectorAll('a[href*="/status/"]') || []);
+      if (matched.length > 0) return matched;
+      const allLinks = Array.from(element.querySelectorAll('a') || []);
+      if (allLinks.length > 0) return allLinks;
+    }
+    if (typeof element.querySelector === 'function') {
+      const single = element.querySelector('a[href*="/status/"]');
+      if (single) return [single];
+    }
+    return [];
+  }
+
+  function extractStatusUrl(rawHref, baseUrl) {
+    if (typeof rawHref !== 'string' || !rawHref.trim()) return '';
+    try {
+      const parsed = new URL(rawHref, baseUrl);
+      if (!isXDomain(parsed.href)) return '';
+      const match = parsed.pathname.match(/^(\/[^\/]+\/status\/\d+|\/i\/(?:web\/)?status\/\d+)/i);
+      if (!match) return '';
+      return `${parsed.origin}${match[1]}`;
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function pickBestStatusUrl(links, baseUrl) {
+    let fallbackUrl = '';
+    for (const link of links) {
+      const href = link?.getAttribute?.('href') || link?.href || '';
+      const statusUrl = extractStatusUrl(href, baseUrl);
+      if (!statusUrl) continue;
+      if (link?.querySelector?.('time')) {
+        return statusUrl;
+      }
+      if (!fallbackUrl) {
+        fallbackUrl = statusUrl;
+      }
+    }
+    return fallbackUrl;
+  }
+
+  function resolveVideoPostUrl(pageDocument, video) {
+    if (!pageDocument || !video || !isXDomain(pageDocument.URL)) return '';
+
+    let element = video;
+    while (element) {
+      const statusUrl = pickBestStatusUrl(collectStatusLinks(element), pageDocument.URL);
+      if (statusUrl) return statusUrl;
+      if (isArticleBoundary(element)) break;
+      element = element.parentElement;
+    }
+
+    const container = findPostContainer(video);
+    if (container) {
+      const statusUrl = pickBestStatusUrl(collectStatusLinks(container), pageDocument.URL);
+      if (statusUrl) return statusUrl;
+    }
+
+    return extractStatusUrl(pageDocument.URL, pageDocument.URL);
+  }
+
+  function resolveVideoPostTitle(pageDocument, video) {
+    if (!pageDocument || !video || !isXDomain(pageDocument.URL)) return '';
+    const container = findPostContainer(video);
+    if (!container) return '';
+
+    const tweetTextEl = container.querySelector?.('[data-testid="tweetText"]');
+    if (tweetTextEl) {
+      const text = tweetTextEl.textContent?.trim();
+      if (text) {
+        const firstLine = text.split('\n').map((part) => part.trim()).filter(Boolean)[0] || text;
+        return firstLine.slice(0, 100);
+      }
+    }
+
+    const userNameEl = container.querySelector?.('[data-testid="User-Name"]');
+    if (userNameEl) {
+      const name = userNameEl.textContent?.trim();
+      if (name) {
+        const firstLine = name.split('\n').map((part) => part.trim()).filter(Boolean)[0] || name;
+        return firstLine.slice(0, 60);
+      }
+    }
+
+    return '';
+  }
+
   function hasSpecificPagePath(value) {
     const url = toHttpUrl(value);
     if (!url) return false;
+    if (isXDomain(url)) {
+      return Boolean(extractStatusUrl(url, url));
+    }
     return new URL(url).pathname.split('/').some(Boolean);
   }
 
@@ -93,10 +226,21 @@
     const seenUrls = new Set();
     const videos = Array.from(pageDocument.querySelectorAll('video'));
     for (const video of videos) {
-      const url = toHttpUrl(video.currentSrc) || toHttpUrl(video.src);
+      let url = toHttpUrl(video.currentSrc) || toHttpUrl(video.src);
+      let title = linkedCandidateName(pageDocument, url);
+      let poster = nearbyPreviewImage(pageDocument, video);
+
+      if (!url) {
+        const postUrl = resolveVideoPostUrl(pageDocument, video);
+        if (postUrl) {
+          url = postUrl;
+          title = resolveVideoPostTitle(pageDocument, video) || pageDocument.title || '';
+        }
+      }
+
       addCandidate(candidates, seenUrls, url, {
-        poster: nearbyPreviewImage(pageDocument, video),
-        title: linkedCandidateName(pageDocument, url),
+        poster,
+        title,
         video
       });
     }
@@ -405,6 +549,13 @@
     return activeSelector;
   }
 
+  let lastContextMenuTarget = null;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('contextmenu', (event) => {
+      lastContextMenuTarget = event.target;
+    }, true);
+  }
+
   globalScope.VdtnContent = {
     collectCandidates,
     appendThumbnail,
@@ -412,12 +563,31 @@
     createResumeNotice,
     createRetryNotice,
     groupQueueItems,
-    openSelector
+    openSelector,
+    findPostContainer,
+    resolveVideoPostUrl,
+    resolveVideoPostTitle,
+    hasSpecificPagePath
   };
   chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.action === 'findVideos') {
       openSelector(document);
       sendResponse({ opened: true });
+    } else if (request.action === 'getContextMenuVideoUrl') {
+      const target = lastContextMenuTarget;
+      const container = findPostContainer(target);
+      const video = target?.closest?.('video')
+        || target?.querySelector?.('video')
+        || target?.parentElement?.querySelector?.('video')
+        || container?.querySelector?.('video');
+      const lookupTarget = video || target;
+      if (lookupTarget) {
+        const url = toHttpUrl(video?.currentSrc) || toHttpUrl(video?.src) || resolveVideoPostUrl(document, lookupTarget);
+        const title = resolveVideoPostTitle(document, lookupTarget) || '';
+        sendResponse({ url: url || null, title: title || null });
+        return;
+      }
+      sendResponse({ url: null, title: null });
     }
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

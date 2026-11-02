@@ -153,6 +153,52 @@ function resolveContextMenuUrl(info, tab) {
   return null;
 }
 
+async function resolveContextMenuTarget(info, tab) {
+  const linkUrl = normalizeHttpUrl(info && info.linkUrl);
+  if (linkUrl) {
+    return { url: linkUrl, title: (tab && tab.title) || '' };
+  }
+
+  const selectionUrl = normalizeHttpUrl(info && info.selectionText);
+  if (selectionUrl) {
+    return { url: selectionUrl, title: (tab && tab.title) || '' };
+  }
+
+  if (info && info.mediaType === 'video') {
+    const directSrcUrl = normalizeHttpUrl(info.srcUrl);
+    if (directSrcUrl) {
+      return { url: directSrcUrl, title: (tab && tab.title) || '' };
+    }
+
+    if (tab && tab.id && chrome.tabs && typeof chrome.tabs.sendMessage === 'function') {
+      try {
+        const response = await new Promise((resolve) => {
+          chrome.tabs.sendMessage(tab.id, { action: 'getContextMenuVideoUrl' }, (res) => {
+            if (chrome.runtime.lastError || !res) {
+              resolve(null);
+            } else {
+              resolve(res);
+            }
+          });
+        });
+        if (response && normalizeHttpUrl(response.url)) {
+          return {
+            url: normalizeHttpUrl(response.url),
+            title: response.title || (tab.title ? tab.title : '')
+          };
+        }
+      } catch (_error) {
+      }
+    }
+  }
+
+  const fallbackUrl = resolveContextMenuUrl(info, tab);
+  return {
+    url: fallbackUrl,
+    title: (tab && tab.title) || ''
+  };
+}
+
 function parseRetryAt(response, now = Date.now()) {
   const retryAfter = response.headers.get('Retry-After');
   if (retryAfter !== null) {
@@ -573,12 +619,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (String(info.menuItemId).startsWith('sep')) {
     return;
   }
-  const url = resolveContextMenuUrl(info, tab);
-  if (!url) {
+  const target = await resolveContextMenuTarget(info, tab);
+  if (!target || !target.url) {
     return;
   }
   await enqueueDownloads(
-    [{ url, resolution: String(info.menuItemId) }],
+    [{ url: target.url, title: target.title, resolution: String(info.menuItemId) }],
     { title: tab && tab.title ? tab.title : '', url: tab && tab.url ? tab.url : '' }
   );
 });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Video Download to NAS",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "minimum_chrome_version": "102",
   "icons": {
     "16": "icon-16.png",
