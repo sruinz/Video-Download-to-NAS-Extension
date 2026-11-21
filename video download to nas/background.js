@@ -156,18 +156,18 @@ function resolveContextMenuUrl(info, tab) {
 async function resolveContextMenuTarget(info, tab) {
   const linkUrl = normalizeHttpUrl(info && info.linkUrl);
   if (linkUrl) {
-    return { url: linkUrl, title: (tab && tab.title) || '' };
+    return { url: linkUrl, title: '' };
   }
 
   const selectionUrl = normalizeHttpUrl(info && info.selectionText);
   if (selectionUrl) {
-    return { url: selectionUrl, title: (tab && tab.title) || '' };
+    return { url: selectionUrl, title: '' };
   }
 
   if (info && info.mediaType === 'video') {
     const directSrcUrl = normalizeHttpUrl(info.srcUrl);
     if (directSrcUrl) {
-      return { url: directSrcUrl, title: (tab && tab.title) || '' };
+      return { url: directSrcUrl, title: '' };
     }
 
     if (tab && tab.id && chrome.tabs && typeof chrome.tabs.sendMessage === 'function') {
@@ -184,7 +184,7 @@ async function resolveContextMenuTarget(info, tab) {
         if (response && normalizeHttpUrl(response.url)) {
           return {
             url: normalizeHttpUrl(response.url),
-            title: response.title || (tab.title ? tab.title : '')
+            title: ''
           };
         }
       } catch (_error) {
@@ -195,7 +195,7 @@ async function resolveContextMenuTarget(info, tab) {
   const fallbackUrl = resolveContextMenuUrl(info, tab);
   return {
     url: fallbackUrl,
-    title: (tab && tab.title) || ''
+    title: ''
   };
 }
 
@@ -233,12 +233,15 @@ async function readResponseBody(response) {
   }
 }
 
-function isEligibleCustomFilename(filename, targetUrl) {
+function isEligibleCustomFilename(filename, targetUrl, sourceTitle) {
   if (typeof filename !== 'string') {
     return false;
   }
   const trimmed = filename.trim();
   if (!trimmed) {
+    return false;
+  }
+  if (typeof sourceTitle === 'string' && sourceTitle.trim() && trimmed === sourceTitle.trim()) {
     return false;
   }
   if (normalizeHttpUrl(trimmed) || /^https?:\/\//i.test(trimmed)) {
@@ -272,7 +275,7 @@ function isEligibleCustomFilename(filename, targetUrl) {
   return true;
 }
 
-async function sendDownloadRequest(options, url, resolution, filename) {
+async function sendDownloadRequest(options, url, resolution, filename, sourceTitle) {
   const validatedUrl = normalizeHttpUrl(url);
   const restUrl = normalizeHttpUrl(options && options.restUrl);
   if (!validatedUrl) {
@@ -285,7 +288,7 @@ async function sendDownloadRequest(options, url, resolution, filename) {
   const authMethod = options.authMethod || 'password';
   const headers = { 'Content-Type': 'application/json;charset=UTF-8' };
   const body = { url: validatedUrl, resolution: resolution || 'best' };
-  if (isEligibleCustomFilename(filename, validatedUrl)) {
+  if (isEligibleCustomFilename(filename, validatedUrl, sourceTitle)) {
     body.filename = filename.trim();
   }
 
@@ -391,7 +394,8 @@ async function runQueueProcessor() {
       await getOptions(),
       nextItem.url,
       nextItem.resolution,
-      nextItem.title
+      nextItem.title,
+      nextItem.sourceTitle
     );
 
     if (result.kind === 'accepted') {
